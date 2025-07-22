@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    kotlin("kapt")
 }
 
 android {
@@ -36,7 +37,7 @@ android {
     }
     buildFeatures {
         compose = true
-        viewBinding = true   // <-- THÊM DÒNG NÀY!
+        viewBinding = true
     }
 }
 
@@ -69,5 +70,20 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.10.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
     implementation("com.google.code.gson:gson:2.10.1")
+    
+    // CardView for better UI
+    implementation("androidx.cardview:cardview:1.0.0")
+    
+    // Material Design
+    implementation("com.google.android.material:material:1.11.0")
+    
+    // Image loading with Glide
+    implementation("com.github.bumptech.glide:glide:4.15.1")
+    kapt("com.github.bumptech.glide:compiler:4.15.1")
 }
+
+
+
+
+
 

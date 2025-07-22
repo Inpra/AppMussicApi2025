@@ -1,17 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AppMussicApi</string>
-    <string name="search_hint">Tìm kiếm bài hát...</string>
-    <string name="now_playing">Đang phát:</string>
-    <string name="no_song">Chưa phát bài hát nào</string>
-    <string name="play">Phát</string>
-    <string name="pause">Tạm dừng</string>
-    <string name="previous">Trước</string>
-    <string name="next">Tiếp</string>
+    <string name="now_playing">Now Playing:</string>
 </resources>
-
-
-
-
-
 

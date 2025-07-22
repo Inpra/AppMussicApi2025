@@ -5,5 +5,6 @@ data class Song(
     val name: String,
     val url: String,
     val artist: String = "Unknown Artist",
-    val duration: Long = 0L
+    val duration: Long = 0L,
+    val imageUrl: String? = null
 )

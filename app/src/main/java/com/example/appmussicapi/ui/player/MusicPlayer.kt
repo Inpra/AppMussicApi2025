@@ -8,18 +8,42 @@ import android.util.Log
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.C
 import com.example.appmussicapi.data.model.Song
 
 class MusicPlayer(private val context: Context) {
-    private val player = ExoPlayer.Builder(context).build()
+    private val player = ExoPlayer.Builder(context)
+        .setWakeMode(C.WAKE_MODE_LOCAL)
+        .setHandleAudioBecomingNoisy(true)
+        .build()
     private var currentUrl: String? = null
     private var currentSongIndex = 0
     private var playlist: List<Song> = emptyList()
+    private var shuffledPlaylist: List<Song> = emptyList()
+    private var isShuffleEnabled = false
+    private var repeatMode = RepeatMode.OFF
+
+    // Add public getter methods
+    fun isPlaying(): Boolean = player.isPlaying
+    
+    fun getIsShuffleEnabled(): Boolean = isShuffleEnabled
+    
+    fun getPlayer(): ExoPlayer = player
+    
+    // Add missing variables
+    private val handler = Handler(Looper.getMainLooper())
+    private var progressRunnable: Runnable? = null
+
+    enum class RepeatMode {
+        OFF, ALL, ONE
+    }
+    
+    // Listeners
     private var onSongChangeListener: ((Song) -> Unit)? = null
     private var onProgressUpdateListener: ((Long, Long) -> Unit)? = null
     private var onPlayStateChangeListener: ((Boolean) -> Unit)? = null
-    private val handler = Handler(Looper.getMainLooper())
-    private var progressRunnable: Runnable? = null
+    private var onShuffleModeChangeListener: ((Boolean) -> Unit)? = null
+    private var onRepeatModeChangeListener: ((RepeatMode) -> Unit)? = null
     
     init {
         player.addListener(object : Player.Listener {
@@ -31,10 +55,19 @@ class MusicPlayer(private val context: Context) {
                     }
                     Player.STATE_ENDED -> {
                         Log.d("MusicPlayer", "Playback ended")
-                        next()
+                        stopProgressUpdates()
+                        handlePlaybackEnded()
                     }
-                    else -> stopProgressUpdates()
                 }
+            }
+            
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    startProgressUpdates()
+                } else {
+                    stopProgressUpdates()
+                }
+                onPlayStateChangeListener?.invoke(isPlaying)
             }
         })
     }
@@ -61,9 +94,27 @@ class MusicPlayer(private val context: Context) {
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {
         playlist = songs
         currentSongIndex = startIndex
-        if (songs.isNotEmpty()) {
-            play(songs[startIndex].url)
+        
+        // Reset shuffle playlist when new playlist is set
+        if (isShuffleEnabled) {
+            shuffledPlaylist = playlist.shuffled()
+            // Find the start song in shuffled playlist
+            if (songs.isNotEmpty() && startIndex < songs.size) {
+                val startSong = songs[startIndex]
+                currentSongIndex = shuffledPlaylist.indexOf(startSong)
+                if (currentSongIndex == -1) currentSongIndex = 0
+            }
         }
+        
+        if (songs.isNotEmpty()) {
+            val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
+            if (currentSongIndex < currentPlaylist.size) {
+                play(currentPlaylist[currentSongIndex].url)
+                onSongChangeListener?.invoke(currentPlaylist[currentSongIndex])
+            }
+        }
+        
+        Log.d("MusicPlayer", "Playlist set: ${songs.size} songs, startIndex: $startIndex, shuffle: $isShuffleEnabled")
     }
     
     fun setOnSongChangeListener(listener: (Song) -> Unit) {
@@ -79,34 +130,45 @@ class MusicPlayer(private val context: Context) {
     }
     
     fun next() {
-        if (playlist.isNotEmpty()) {
-            currentSongIndex = (currentSongIndex + 1) % playlist.size
-            play(playlist[currentSongIndex].url)
-            onSongChangeListener?.invoke(playlist[currentSongIndex])
+        val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
+        if (currentPlaylist.isNotEmpty()) {
+            currentSongIndex = (currentSongIndex + 1) % currentPlaylist.size
+            Log.d("MusicPlayer", "Next song - Index: $currentSongIndex, Shuffle: $isShuffleEnabled")
+            play(currentPlaylist[currentSongIndex].url)
+            onSongChangeListener?.invoke(currentPlaylist[currentSongIndex])
         }
     }
     
     fun previous() {
-        if (playlist.isNotEmpty()) {
-            currentSongIndex = if (currentSongIndex > 0) currentSongIndex - 1 else playlist.size - 1
-            play(playlist[currentSongIndex].url)
-            onSongChangeListener?.invoke(playlist[currentSongIndex])
+        val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
+        if (currentPlaylist.isNotEmpty()) {
+            currentSongIndex = if (currentSongIndex > 0) currentSongIndex - 1 else currentPlaylist.size - 1
+            Log.d("MusicPlayer", "Previous song - Index: $currentSongIndex, Shuffle: $isShuffleEnabled")
+            play(currentPlaylist[currentSongIndex].url)
+            onSongChangeListener?.invoke(currentPlaylist[currentSongIndex])
         }
     }
     
-    fun seekTo(position: Long) {
-        player.seekTo(position)
+    fun seekTo(positionMs: Long) {
+        if (player.isCommandAvailable(Player.COMMAND_SEEK_TO_DEFAULT_POSITION)) {
+            player.seekTo(positionMs)
+            Log.d("MusicPlayer", "Seeking to: ${positionMs}ms")
+        }
     }
     
     fun getCurrentPosition(): Long = player.currentPosition
-    fun getDuration(): Long = player.duration
-    
+
+    fun getDuration(): Long = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L
+
     private fun startProgressUpdates() {
+        stopProgressUpdates()
         progressRunnable = object : Runnable {
             override fun run() {
                 if (player.isPlaying) {
-                    onProgressUpdateListener?.invoke(player.currentPosition, player.duration)
-                    handler.postDelayed(this, 1000)
+                    val currentPos = getCurrentPosition()
+                    val duration = getDuration()
+                    onProgressUpdateListener?.invoke(currentPos, duration)
+                    handler.postDelayed(this, 1000) // Update every second
                 }
             }
         }
@@ -115,10 +177,119 @@ class MusicPlayer(private val context: Context) {
     
     private fun stopProgressUpdates() {
         progressRunnable?.let { handler.removeCallbacks(it) }
+        progressRunnable = null
     }
     
     fun release() {
         stopProgressUpdates()
         player.release()
+    }
+    
+    fun toggleShuffle() {
+        isShuffleEnabled = !isShuffleEnabled
+        Log.d("MusicPlayer", "Shuffle toggled: $isShuffleEnabled")
+        
+        if (isShuffleEnabled) {
+            // Create shuffled playlist
+            shuffledPlaylist = playlist.shuffled()
+            Log.d("MusicPlayer", "Created shuffled playlist with ${shuffledPlaylist.size} songs")
+            
+            // Find current song in shuffled playlist
+            val currentSong = getCurrentSong()
+            if (currentSong != null) {
+                currentSongIndex = shuffledPlaylist.indexOf(currentSong)
+                if (currentSongIndex == -1) {
+                    currentSongIndex = 0
+                }
+            } else {
+                currentSongIndex = 0
+            }
+            Log.d("MusicPlayer", "Current index in shuffled playlist: $currentSongIndex")
+        } else {
+            // Find current song in original playlist
+            val currentSong = getCurrentSong()
+            if (currentSong != null) {
+                currentSongIndex = playlist.indexOf(currentSong)
+                if (currentSongIndex == -1) {
+                    currentSongIndex = 0
+                }
+            } else {
+                currentSongIndex = 0
+            }
+            Log.d("MusicPlayer", "Current index in original playlist: $currentSongIndex")
+        }
+        
+        onShuffleModeChangeListener?.invoke(isShuffleEnabled)
+    }
+    
+    fun toggleRepeatMode() {
+        repeatMode = when (repeatMode) {
+            RepeatMode.OFF -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.OFF
+        }
+        
+        // Set ExoPlayer repeat mode
+        when (repeatMode) {
+            RepeatMode.OFF -> player.repeatMode = Player.REPEAT_MODE_OFF
+            RepeatMode.ALL -> player.repeatMode = Player.REPEAT_MODE_ALL
+            RepeatMode.ONE -> player.repeatMode = Player.REPEAT_MODE_ONE
+        }
+        
+        onRepeatModeChangeListener?.invoke(repeatMode)
+    }
+    
+    fun setOnShuffleModeChangeListener(listener: (Boolean) -> Unit) {
+        onShuffleModeChangeListener = listener
+    }
+    
+    fun setOnRepeatModeChangeListener(listener: (RepeatMode) -> Unit) {
+        onRepeatModeChangeListener = listener
+    }
+
+    fun getRepeatMode(): RepeatMode = repeatMode
+
+    fun isRepeatOneEnabled(): Boolean = repeatMode == RepeatMode.ONE
+
+    fun getCurrentSong(): Song? {
+        val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
+        return if (currentPlaylist.isNotEmpty() && currentSongIndex >= 0 && currentSongIndex < currentPlaylist.size) {
+            currentPlaylist[currentSongIndex]
+        } else null
+    }
+
+    private fun handlePlaybackEnded() {
+        val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
+        if (currentPlaylist.isNotEmpty()) {
+            when (repeatMode) {
+                RepeatMode.ONE -> {
+                    // Replay current song from beginning
+                    Log.d("MusicPlayer", "Repeating current song")
+                    seekTo(0)
+                    play()
+                    onSongChangeListener?.invoke(currentPlaylist[currentSongIndex])
+                }
+                RepeatMode.ALL -> {
+                    // Go to next song, loop back to start if at end
+                    currentSongIndex = (currentSongIndex + 1) % currentPlaylist.size
+                    Log.d("MusicPlayer", "Repeat All - Next song: ${currentSongIndex}")
+                    play(currentPlaylist[currentSongIndex].url)
+                    onSongChangeListener?.invoke(currentPlaylist[currentSongIndex])
+                }
+                RepeatMode.OFF -> {
+                    if (currentSongIndex < currentPlaylist.size - 1) {
+                        // Play next song
+                        currentSongIndex++
+                        Log.d("MusicPlayer", "Auto next song: ${currentSongIndex}")
+                        play(currentPlaylist[currentSongIndex].url)
+                        onSongChangeListener?.invoke(currentPlaylist[currentSongIndex])
+                    } else {
+                        // End of playlist, stop playing
+                        Log.d("MusicPlayer", "End of playlist")
+                        pause()
+                    }
+                }
+            }
+        }
     }
 }

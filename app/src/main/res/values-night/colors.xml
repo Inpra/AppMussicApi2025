@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme colors -->
+    <color name="button_active">#FF26C6DA</color>
+    <color name="button_active_cyan">#FF18FFFF</color>
+    <color name="button_active_orange">#FFFFC107</color>
+    <color name="button_inactive">#60FFFFFF</color>
+</resources>
