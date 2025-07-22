@@ -71,6 +71,17 @@
             android:background="@drawable/play_button_background"
             android:layout_marginStart="8dp" />
 
+        <ImageView
+            android:id="@+id/downloadButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_download"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="12dp"
+            android:layout_marginStart="8dp"
+            android:clickable="true"
+            android:focusable="true" />
+
     </LinearLayout>
 
 </androidx.cardview.widget.CardView>

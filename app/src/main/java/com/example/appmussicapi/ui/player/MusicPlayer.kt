@@ -23,13 +23,11 @@ class MusicPlayer(private val context: Context) {
     private var isShuffleEnabled = false
     private var repeatMode = RepeatMode.OFF
 
-    // Add public getter methods
+    // Getter methods
     fun isPlaying(): Boolean = player.isPlaying
-    
     fun getIsShuffleEnabled(): Boolean = isShuffleEnabled
-    
     fun getPlayer(): ExoPlayer = player
-    
+
     // Add missing variables
     private val handler = Handler(Looper.getMainLooper())
     private var progressRunnable: Runnable? = null
@@ -77,44 +75,38 @@ class MusicPlayer(private val context: Context) {
             if (currentUrl != it) {
                 currentUrl = it
                 val mediaItem = MediaItem.fromUri(Uri.parse(it))
-                player.setMediaItem(mediaItem)
-                player.prepare()
+                player.setMediaItem(mediaItem)  // Fix: exoPlayer -> player
+                player.prepare()                // Fix: exoPlayer -> player
             }
         }
-        player.play()
+        player.play()                          // Fix: exoPlayer -> player
         onPlayStateChangeListener?.invoke(true)
     }
     
     fun pause() {
-        player.pause()
+        player.pause()                         // Fix: exoPlayer -> player
         stopProgressUpdates()
         onPlayStateChangeListener?.invoke(false)
     }
     
-    fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {
-        playlist = songs
-        currentSongIndex = startIndex
+    fun setPlaylist(songs: List<Song>, startIndex: Int = 0, autoPlay: Boolean = true) {
+        this.playlist = songs
+        this.currentSongIndex = startIndex  // Fix: currentIndex -> currentSongIndex
         
-        // Reset shuffle playlist when new playlist is set
-        if (isShuffleEnabled) {
-            shuffledPlaylist = playlist.shuffled()
-            // Find the start song in shuffled playlist
-            if (songs.isNotEmpty() && startIndex < songs.size) {
-                val startSong = songs[startIndex]
-                currentSongIndex = shuffledPlaylist.indexOf(startSong)
-                if (currentSongIndex == -1) currentSongIndex = 0
+        if (songs.isNotEmpty() && startIndex < songs.size) {
+            val song = songs[startIndex]
+            val mediaItem = MediaItem.fromUri(song.url)
+            
+            player.setMediaItem(mediaItem)  // Fix: exoPlayer -> player
+            player.prepare()                // Fix: exoPlayer -> player
+            
+            if (autoPlay) {
+                player.play()               // Fix: exoPlayer -> player
             }
+            
+            onSongChangeListener?.invoke(song)
+            Log.d("MusicPlayer", "Playlist set with ${songs.size} songs, current: ${song.name}")
         }
-        
-        if (songs.isNotEmpty()) {
-            val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
-            if (currentSongIndex < currentPlaylist.size) {
-                play(currentPlaylist[currentSongIndex].url)
-                onSongChangeListener?.invoke(currentPlaylist[currentSongIndex])
-            }
-        }
-        
-        Log.d("MusicPlayer", "Playlist set: ${songs.size} songs, startIndex: $startIndex, shuffle: $isShuffleEnabled")
     }
     
     fun setOnSongChangeListener(listener: (Song) -> Unit) {

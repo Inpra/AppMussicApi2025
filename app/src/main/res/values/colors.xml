@@ -9,8 +9,9 @@
     <color name="teal_700">#FF018786</color>
     
     <!-- Button states -->
-    <color name="button_active_cyan">#FF00BCD4</color>
-    <color name="button_active_orange">#FFFF9800</color>
-    <color name="button_inactive">#FF757575</color>
+    <color name="button_active_cyan">#00BCD4</color>
+    <color name="button_active_orange">#FF9800</color>
+    <color name="button_inactive">#757575</color>
 </resources>
+
 

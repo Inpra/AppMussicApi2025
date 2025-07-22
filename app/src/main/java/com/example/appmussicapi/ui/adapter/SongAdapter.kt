@@ -12,14 +12,17 @@ import com.example.appmussicapi.data.model.Song
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import android.util.Log
+import androidx.core.content.ContextCompat
 
 class SongAdapter(
-    private val onSongClick: (Song) -> Unit
+    private val onSongClick: (Song) -> Unit,
+    private val onDownloadClick: (Song) -> Unit = {}
 ) : RecyclerView.Adapter<SongAdapter.SongViewHolder>() {
     
     private var allSongs: List<Song> = emptyList()
     private var filteredSongs: List<Song> = emptyList()
-
+    private val downloadedSongs = mutableSetOf<String>()
+    
     fun updateSongs(newSongs: List<Song>) {
         Log.d("SongAdapter", "Updating songs: ${newSongs.size}")
         allSongs = newSongs
@@ -46,6 +49,12 @@ class SongAdapter(
         notifyDataSetChanged()
     }
 
+    fun updateDownloadedSongs(downloadedIds: Set<String>) {
+        downloadedSongs.clear()
+        downloadedSongs.addAll(downloadedIds)
+        notifyDataSetChanged()
+    }
+    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_song, parent, false)
@@ -64,11 +73,21 @@ class SongAdapter(
         private val songDuration: TextView = itemView.findViewById(R.id.songDuration)
         private val songThumbnail: ImageView = itemView.findViewById(R.id.songThumbnail)
         private val playButton: ImageButton = itemView.findViewById(R.id.playButton)
+        private val downloadButton: ImageView = itemView.findViewById(R.id.downloadButton)
 
         fun bind(song: Song) {
             songName.text = song.name
             artistName.text = song.artist
             songDuration.text = formatDuration(song.duration)
+            
+            // Update download button state
+            if (downloadedSongs.contains(song.id)) {
+                downloadButton.setImageResource(R.drawable.ic_downloaded)
+                downloadButton.setColorFilter(ContextCompat.getColor(itemView.context, R.color.button_active_cyan))
+            } else {
+                downloadButton.setImageResource(R.drawable.ic_download)
+                downloadButton.setColorFilter(ContextCompat.getColor(itemView.context, R.color.button_inactive))
+            }
             
             // Load image with Glide
             Glide.with(itemView.context)
@@ -78,13 +97,9 @@ class SongAdapter(
                 .transform(RoundedCorners(16))
                 .into(songThumbnail)
             
-            itemView.setOnClickListener {
-                onSongClick(song)
-            }
-            
-            playButton.setOnClickListener {
-                onSongClick(song)
-            }
+            itemView.setOnClickListener { onSongClick(song) }
+            playButton.setOnClickListener { onSongClick(song) }
+            downloadButton.setOnClickListener { onDownloadClick(song) }
         }
         
         private fun formatDuration(durationMs: Long): String {

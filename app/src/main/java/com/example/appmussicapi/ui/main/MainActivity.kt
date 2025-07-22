@@ -2,19 +2,23 @@ package com.example.appmussicapi.ui.main
 
 import android.os.Bundle
 import android.util.Log
-// import android.view.Menu  // REMOVE
-// import android.view.MenuItem  // REMOVE
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.appmussicapi.R
 import com.example.appmussicapi.databinding.ActivityMainBinding
 import com.example.appmussicapi.data.model.Song
 import com.example.appmussicapi.ui.adapter.SongAdapter
 import com.example.appmussicapi.ui.player.MusicPlayer
+import com.example.appmussicapi.repository.OfflineRepository
+import com.example.appmussicapi.data.download.DownloadManager
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import java.util.Locale
+import com.example.appmussicapi.utils.ToastManager
 
 class MainActivity : AppCompatActivity() {
     
@@ -22,35 +26,41 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: SongAdapter
     private lateinit var player: MusicPlayer
     private lateinit var themeManager: ThemeManager
+    private lateinit var offlineRepository: OfflineRepository
     private val viewModel: MainViewModel by viewModels()
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Initialize ViewBinding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
         // Initialize components
         themeManager = ThemeManager(this)
         player = MusicPlayer(this)
+        offlineRepository = OfflineRepository(this)
         
         setupRecyclerView()
         setupPlayerControls()
         setupSearchView()
         setupObservers()
+        setupDownloadListener()
         
-        // Load songs
         viewModel.loadSongs()
     }
     
     private fun setupRecyclerView() {
-        adapter = SongAdapter { song ->
-            val songIndex = viewModel.songs.value?.indexOf(song) ?: 0
-            player.setPlaylist(viewModel.songs.value ?: emptyList(), songIndex)
-            updateNowPlaying(song)
-            Toast.makeText(this, "Playing: ${song.name}", Toast.LENGTH_SHORT).show()
-        }
+        adapter = SongAdapter(
+            onSongClick = { song ->
+                val songIndex = viewModel.songs.value?.indexOf(song) ?: 0
+                player.setPlaylist(viewModel.songs.value ?: emptyList(), songIndex, true) // true = auto play khi user click
+                updateNowPlaying(song)
+                ToastManager.showToast(this, "Playing: ${song.name}")
+            },
+            onDownloadClick = { song ->
+                handleDownloadClick(song)
+            }
+        )
         
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
@@ -155,7 +165,8 @@ class MainActivity : AppCompatActivity() {
             adapter.updateSongs(songs)
             
             if (songs.isNotEmpty()) {
-                player.setPlaylist(songs)
+                // Chỉ set playlist, KHÔNG auto play
+                player.setPlaylist(songs, 0, false) // false = không auto play
             }
         }
     }
@@ -274,11 +285,92 @@ class MainActivity : AppCompatActivity() {
     //     }
     // }
     
+    private fun setupDownloadListener() {
+        offlineRepository.setDownloadProgressListener { progress ->
+            runOnUiThread {
+                when (progress.status) {
+                    DownloadManager.DownloadStatus.DOWNLOADING -> {
+                        // Chỉ show toast mỗi 25% progress để tránh spam
+                        if (progress.progress % 25 == 0) {
+                            ToastManager.showToast(this, "Downloading: ${progress.progress}%")
+                        }
+                    }
+                    DownloadManager.DownloadStatus.COMPLETED -> {
+                        ToastManager.showToast(this, "Download completed!")
+                        updateDownloadedSongs()
+                    }
+                    DownloadManager.DownloadStatus.FAILED -> {
+                        ToastManager.showToast(this, "Download failed!")
+                    }
+                    else -> {}
+                }
+            }
+        }
+        
+        // Load downloaded songs
+        lifecycleScope.launch {
+            offlineRepository.getAllDownloadedSongs().collect { downloadedSongs ->
+                val downloadedIds = downloadedSongs.map { it.songId }.toSet()
+                adapter.updateDownloadedSongs(downloadedIds)
+            }
+        }
+    }
+    
+    private fun handleDownloadClick(song: Song) {
+        lifecycleScope.launch {
+            if (offlineRepository.isDownloaded(song.id)) {
+                showDeleteDownloadDialog(song)
+            } else {
+                Log.d("MainActivity", "Starting download for: ${song.id} - ${song.name}")
+                ToastManager.showToast(this@MainActivity, "Starting download...")
+                val result = offlineRepository.downloadSong(song)
+                if (result.isFailure) {
+                    Log.e("MainActivity", "Download failed: ${result.exceptionOrNull()}")
+                    ToastManager.showToast(this@MainActivity, "Download failed!")
+                }
+            }
+        }
+    }
+    
+    private fun showDeleteDownloadDialog(song: Song) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Delete Download")
+            .setMessage("Remove downloaded file for ${song.name}?")
+            .setPositiveButton("Delete") { _, _ ->
+                lifecycleScope.launch {
+                    offlineRepository.deleteDownload(song.id)
+                    ToastManager.showToast(this@MainActivity, "Download deleted")
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun updateDownloadedSongs() {
+        lifecycleScope.launch {
+            val downloadedIds = offlineRepository.getDownloadedIds()
+            adapter.updateDownloadedSongs(downloadedIds)
+        }
+    }
+    
     override fun onDestroy() {
         super.onDestroy()
         player.release()
+        ToastManager.cancelToast()
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
