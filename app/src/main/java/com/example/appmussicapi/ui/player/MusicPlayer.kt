@@ -309,18 +309,22 @@ class MusicPlayer(private val context: Context) {
 
     // Sleep timer methods
     fun getSleepTimer(): SleepTimer = sleepTimer
-    
+
     fun startSleepTimer(durationMs: Long) {
         sleepTimer.startTimer(durationMs)
     }
-    
+
     fun stopSleepTimer() {
         sleepTimer.stopTimer()
     }
-    
-    fun isSleepTimerActive(): Boolean = sleepTimer.isActive()
-    
-    fun getSleepTimerRemainingTime(): Long = sleepTimer.getRemainingTime()
+
+    fun isSleepTimerActive(): Boolean {
+        return sleepTimer.isActive()
+    }
+
+    fun getSleepTimerRemainingTime(): Long {
+        return sleepTimer.getRemainingTime()
+    }
 
     fun getQueueManager(): QueueManager = queueManager
 

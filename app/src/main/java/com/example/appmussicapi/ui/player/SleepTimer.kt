@@ -24,23 +24,32 @@ class SleepTimer {
     }
     
     fun startTimer(durationMs: Long) {
+        Log.d("SleepTimer", "Starting timer for ${durationMs}ms")
         stopTimer()
+        
+        if (musicPlayer == null) {
+            Log.e("SleepTimer", "MusicPlayer is null!")
+            return
+        }
         
         countDownTimer = object : CountDownTimer(durationMs, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 remainingTime = millisUntilFinished
+                Log.d("SleepTimer", "Timer tick: ${formatTime(millisUntilFinished)}")
                 onTimerUpdateListener?.invoke(millisUntilFinished)
                 
                 // Fade out volume in last 10 seconds
                 if (millisUntilFinished <= 10000) {
                     val volume = (millisUntilFinished / 10000f).coerceIn(0f, 1f)
                     musicPlayer?.getPlayer()?.volume = volume
+                    Log.d("SleepTimer", "Fading volume: $volume")
                 }
             }
             
             override fun onFinish() {
+                Log.d("SleepTimer", "Timer finished - pausing music")
                 musicPlayer?.pause()
-                musicPlayer?.getPlayer()?.volume = 0f
+                musicPlayer?.getPlayer()?.volume = 1.0f // Reset volume
                 isActive = false
                 remainingTime = 0
                 onTimerFinishedListener?.invoke()
@@ -50,7 +59,7 @@ class SleepTimer {
         
         countDownTimer?.start()
         isActive = true
-        Log.d("SleepTimer", "Sleep timer started for ${durationMs}ms")
+        Log.d("SleepTimer", "Sleep timer started successfully")
     }
     
     fun stopTimer() {

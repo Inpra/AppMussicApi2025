@@ -1,6 +1,8 @@
 package com.example.appmussicapi.ui.player
 
+import android.content.res.ColorStateList
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.SeekBar
@@ -35,22 +37,29 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         setupUI()
         setupListeners()
         setupMusicPlayerListeners()
-        updateCurrentSong()
         setupSleepTimer()
+        updateCurrentSong()
     }
     
     private fun setupUI() {
         updatePlayPauseButton(musicPlayer.isPlaying())
         updateShuffleButton()
         updateRepeatButton()
+        
+        // Đảm bảo các control buttons có màu đúng
+        binding.nextButton.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.purple_500))
+        binding.previousButton.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.purple_500))
+        binding.shuffleButton.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.purple_500))
+        binding.repeatButton.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.purple_500))
+        binding.moreButton.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.purple_500))
     }
     
     private fun setupListeners() {
-        binding.backButton.setOnClickListener {
-            finish()
-        }
+        Log.d("FullScreenPlayer", "Setting up listeners")
         
+        // Play/Pause button
         binding.playPauseButton.setOnClickListener {
+            Log.d("FullScreenPlayer", "Play/Pause clicked")
             if (musicPlayer.isPlaying()) {
                 musicPlayer.pause()
             } else {
@@ -58,29 +67,39 @@ class FullScreenPlayerActivity : AppCompatActivity() {
             }
         }
         
+        // Next button
         binding.nextButton.setOnClickListener {
+            Log.d("FullScreenPlayer", "Next button clicked")
             musicPlayer.next()
         }
         
+        // Previous button
         binding.previousButton.setOnClickListener {
+            Log.d("FullScreenPlayer", "Previous button clicked")
             musicPlayer.previous()
         }
         
+        // Shuffle button
         binding.shuffleButton.setOnClickListener {
+            Log.d("FullScreenPlayer", "Shuffle button clicked")
             musicPlayer.toggleShuffle()
             updateShuffleButton()
         }
         
+        // Repeat button
         binding.repeatButton.setOnClickListener {
+            Log.d("FullScreenPlayer", "Repeat button clicked")
             musicPlayer.toggleRepeatMode()
             updateRepeatButton()
         }
         
+        // More button
         binding.moreButton.setOnClickListener {
+            Log.d("FullScreenPlayer", "More button clicked")
             showMoreOptionsMenu()
         }
         
-        // Setup SeekBar - Fix để tránh auto reset
+        // Setup SeekBar
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             private var userSeeking = false
             
@@ -103,35 +122,37 @@ class FullScreenPlayerActivity : AppCompatActivity() {
     }
     
     private fun setupMusicPlayerListeners() {
-        // Listen for song changes
+        // Listener khi bài hát thay đổi
         musicPlayer.setOnSongChangeListener { song ->
             runOnUiThread {
+                Log.d("FullScreenPlayer", "Song changed to: ${song?.name}")
                 updateCurrentSong()
             }
         }
         
-        // Listen for play state changes
+        // Listener khi trạng thái play/pause thay đổi
         musicPlayer.setOnPlayStateChangeListener { isPlaying ->
             runOnUiThread {
+                Log.d("FullScreenPlayer", "Play state changed: $isPlaying")
                 updatePlayPauseButton(isPlaying)
             }
         }
         
-        // Listen for progress updates
-        musicPlayer.setOnProgressUpdateListener { currentPosition, duration ->
+        // Listener cập nhật progress
+        musicPlayer.setOnProgressUpdateListener { currentPos, duration ->
             runOnUiThread {
-                updateProgress(currentPosition, duration)
+                updateProgress(currentPos, duration)
             }
         }
         
-        // Listen for shuffle mode changes
+        // Listener shuffle mode thay đổi
         musicPlayer.setOnShuffleModeChangeListener { isShuffleEnabled ->
             runOnUiThread {
                 updateShuffleButton()
             }
         }
         
-        // Listen for repeat mode changes
+        // Listener repeat mode thay đổi
         musicPlayer.setOnRepeatModeChangeListener { repeatMode ->
             runOnUiThread {
                 updateRepeatButton()
@@ -141,21 +162,26 @@ class FullScreenPlayerActivity : AppCompatActivity() {
     
     private fun updateCurrentSong() {
         val currentSong = musicPlayer.getCurrentSong()
+        Log.d("FullScreenPlayer", "Updating current song: ${currentSong?.name}")
+        
         currentSong?.let { song ->
             binding.songTitle.text = song.name
             binding.artistName.text = song.artist
             
-            // Load album art
+            // Load album art với Glide
             Glide.with(this)
                 .load(song.imageUrl)
                 .placeholder(R.drawable.default_album_art)
                 .error(R.drawable.default_album_art)
                 .transform(RoundedCorners(32))
                 .into(binding.albumArt)
+                
+            Log.d("FullScreenPlayer", "Updated UI for song: ${song.name} by ${song.artist}")
         } ?: run {
             binding.songTitle.text = "No song playing"
             binding.artistName.text = "Unknown artist"
             binding.albumArt.setImageResource(R.drawable.default_album_art)
+            Log.d("FullScreenPlayer", "No current song")
         }
     }
     
@@ -189,7 +215,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         musicPlayer.getSleepTimer().setOnTimerFinishedListener {
             runOnUiThread {
                 binding.sleepTimerStatus.visibility = View.GONE
-                updatePlayPauseButton(false) // Update UI to show paused state
+                updatePlayPauseButton(false)
                 ToastManager.showToast(this@FullScreenPlayerActivity, "Sleep timer finished")
             }
         }
@@ -201,50 +227,68 @@ class FullScreenPlayerActivity : AppCompatActivity() {
     }
     
     private fun showMoreOptionsMenu() {
-        val popup = PopupMenu(this, binding.moreButton)
-        popup.menuInflater.inflate(R.menu.player_more_menu, popup.menu)
-        
-        // Update sleep timer menu item
-        val sleepTimerItem = popup.menu.findItem(R.id.action_sleep_timer)
-        if (musicPlayer.isSleepTimerActive()) {
-            sleepTimerItem.title = "Sleep Timer (${musicPlayer.getSleepTimer().formatTime(musicPlayer.getSleepTimerRemainingTime())})"
-        } else {
-            sleepTimerItem.title = "Sleep Timer"
-        }
-        
-        popup.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.action_sleep_timer -> {
-                    showSleepTimerDialog()
-                    true
-                }
-                else -> false
+        Log.d("FullScreenPlayer", "Showing more options menu")
+        try {
+            val popup = PopupMenu(this, binding.moreButton)
+            
+            // Inflate menu resource
+            popup.menuInflater.inflate(R.menu.player_more_menu, popup.menu)
+            
+            // Update sleep timer menu item
+            val sleepTimerItem = popup.menu.findItem(R.id.action_sleep_timer)
+            if (musicPlayer.isSleepTimerActive()) {
+                val remainingTime = musicPlayer.getSleepTimerRemainingTime()
+                sleepTimerItem.title = "Sleep Timer (${formatTime(remainingTime)})"
+            } else {
+                sleepTimerItem.title = "Sleep Timer"
             }
+            
+            // Set click listener
+            popup.setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.action_sleep_timer -> {
+                        Log.d("FullScreenPlayer", "Sleep timer menu item clicked")
+                        showSleepTimerDialog()
+                        true
+                    }
+                    else -> false
+                }
+            }
+            
+            // Show the popup menu
+            popup.show()
+            Log.d("FullScreenPlayer", "Popup menu shown successfully")
+        } catch (e: Exception) {
+            Log.e("FullScreenPlayer", "Error showing popup menu", e)
+            ToastManager.showToast(this, "Error showing menu: ${e.message}")
         }
-        
-        popup.show()
     }
     
     private fun showSleepTimerDialog() {
-        val dialog = SleepTimerDialog(
-            context = this,
-            onTimerSet = { durationMs ->
-                musicPlayer.startSleepTimer(durationMs)
-                ToastManager.showToast(this@FullScreenPlayerActivity, "Sleep timer set for ${musicPlayer.getSleepTimer().formatTime(durationMs)}")
-            },
-            onTimerCancel = {
-                musicPlayer.stopSleepTimer()
-                binding.sleepTimerStatus.visibility = View.GONE
-                ToastManager.showToast(this@FullScreenPlayerActivity, "Sleep timer cancelled")
-            }
-        )
-        dialog.show()
+        try {
+            val dialog = SleepTimerDialog(
+                context = this,
+                onTimerSet = { durationMs ->
+                    musicPlayer.startSleepTimer(durationMs)
+                    ToastManager.showToast(this@FullScreenPlayerActivity, "Sleep timer set for ${formatTime(durationMs)}")
+                },
+                onTimerCancel = {
+                    musicPlayer.stopSleepTimer()
+                    binding.sleepTimerStatus.visibility = View.GONE
+                    ToastManager.showToast(this@FullScreenPlayerActivity, "Sleep timer cancelled")
+                }
+            )
+            dialog.show()
+        } catch (e: Exception) {
+            Log.e("FullScreenPlayer", "Error showing sleep timer dialog", e)
+            ToastManager.showToast(this, "Error: ${e.message}")
+        }
     }
     
     private fun updateSleepTimerStatus(remainingMs: Long) {
         if (remainingMs > 0) {
+            binding.sleepTimerStatus.text = "Sleep: ${formatTime(remainingMs)}"
             binding.sleepTimerStatus.visibility = View.VISIBLE
-            binding.sleepTimerStatus.text = "Sleep: ${musicPlayer.getSleepTimer().formatTime(remainingMs)}"
         } else {
             binding.sleepTimerStatus.visibility = View.GONE
         }
@@ -256,7 +300,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
             binding.shuffleButton.setColorFilter(ContextCompat.getColor(this, R.color.button_active_cyan))
             binding.shuffleButton.alpha = 1.0f
         } else {
-            binding.shuffleButton.setColorFilter(ContextCompat.getColor(this, R.color.button_inactive))
+            binding.shuffleButton.setColorFilter(ContextCompat.getColor(this, R.color.purple_500))
             binding.shuffleButton.alpha = 0.6f
         }
     }
@@ -264,7 +308,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
     private fun updateRepeatButton() {
         when (musicPlayer.getRepeatMode()) {
             MusicPlayer.RepeatMode.OFF -> {
-                binding.repeatButton.setColorFilter(ContextCompat.getColor(this, R.color.button_inactive))
+                binding.repeatButton.setColorFilter(ContextCompat.getColor(this, R.color.purple_500))
                 binding.repeatButton.alpha = 0.6f
                 binding.repeatButton.setImageResource(R.drawable.ic_repeat)
             }
@@ -287,15 +331,28 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         } else {
             binding.playPauseButton.setImageResource(R.drawable.ic_play)
         }
+        // Đảm bảo icon có màu trắng nổi bật trên background tím
         binding.playPauseButton.setColorFilter(ContextCompat.getColor(this, R.color.white))
+        binding.playPauseButton.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.white))
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Update UI khi quay lại activity
+        updatePlayPauseButton(musicPlayer.isPlaying())
+        updateShuffleButton()
+        updateRepeatButton()
+        updateCurrentSong()
+        
+        // Update progress
+        val currentPos = musicPlayer.getCurrentPosition()
+        val duration = musicPlayer.getDuration()
+        updateProgress(currentPos, duration)
     }
     
     override fun onDestroy() {
         super.onDestroy()
-        // Clear listeners to prevent memory leaks
-        musicPlayer.setOnSongChangeListener(null)
-        musicPlayer.setOnPlayStateChangeListener(null)
-        musicPlayer.setOnProgressUpdateListener(null)
+        // Không clear listeners để MainActivity có thể tiếp tục hoạt động
     }
 }
 

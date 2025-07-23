@@ -76,29 +76,16 @@ class MainActivity : AppCompatActivity() {
     private fun setupPlayerControls() {
         val playerControls = binding.playerControls
         
-        // Setup listeners để tự động update UI
-        player.setOnPlayStateChangeListener { isPlaying ->
-            updatePlayPauseButton(isPlaying)
-        }
+        // Set màu trắng cho tất cả các icon control
+        playerControls.playBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
+        playerControls.pauseBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
+        playerControls.prevBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
+        playerControls.nextBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
+        playerControls.shuffleBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
+        playerControls.repeatBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
         
-        player.setOnShuffleModeChangeListener { isShuffleEnabled ->
-            updateShuffleButton()
-        }
-        
-        player.setOnRepeatModeChangeListener { repeatMode ->
-            updateRepeatButton()
-        }
-        
-        player.setOnSongChangeListener { song ->
-            updateNowPlaying(song)
-        }
-        
-        // Setup progress updates
-        player.setOnProgressUpdateListener { currentPos, duration ->
-            runOnUiThread {
-                updateProgressBar(currentPos, duration)
-            }
-        }
+        // Move listener setup to separate method
+        setupPlayerListeners()
         
         // Button click listeners
         playerControls.playBtn.setOnClickListener {
@@ -123,6 +110,11 @@ class MainActivity : AppCompatActivity() {
         
         playerControls.repeatBtn.setOnClickListener {
             player.toggleRepeatMode()
+        }
+        
+        // Click vào player controls để mở full screen
+        playerControls.root.setOnClickListener {
+            FullScreenPlayerActivity.start(this, player)
         }
         
         // SeekBar setup
@@ -232,11 +224,11 @@ class MainActivity : AppCompatActivity() {
         
         if (isShuffleOn) {
             playerControls.shuffleBtn.alpha = 1.0f
-            playerControls.shuffleBtn.setColorFilter(ContextCompat.getColor(this, R.color.button_active_cyan))
+            playerControls.shuffleBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
             Toast.makeText(this, "Shuffle: On", Toast.LENGTH_SHORT).show()
         } else {
-            playerControls.shuffleBtn.alpha = 0.5f
-            playerControls.shuffleBtn.setColorFilter(ContextCompat.getColor(this, R.color.button_inactive))
+            playerControls.shuffleBtn.alpha = 0.7f
+            playerControls.shuffleBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
             Toast.makeText(this, "Shuffle: Off", Toast.LENGTH_SHORT).show()
         }
     }
@@ -246,15 +238,15 @@ class MainActivity : AppCompatActivity() {
         
         when (player.getRepeatMode()) {
             MusicPlayer.RepeatMode.OFF -> {
-                playerControls.repeatBtn.alpha = 0.5f
+                playerControls.repeatBtn.alpha = 0.7f
                 playerControls.repeatBtn.setImageResource(R.drawable.ic_repeat)
-                playerControls.repeatBtn.setColorFilter(ContextCompat.getColor(this, R.color.button_inactive))
+                playerControls.repeatBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
                 Toast.makeText(this, "Repeat: Off", Toast.LENGTH_SHORT).show()
             }
             MusicPlayer.RepeatMode.ALL -> {
                 playerControls.repeatBtn.alpha = 1.0f
                 playerControls.repeatBtn.setImageResource(R.drawable.ic_repeat)
-                playerControls.repeatBtn.setColorFilter(ContextCompat.getColor(this, R.color.button_active_cyan))
+                playerControls.repeatBtn.setColorFilter(ContextCompat.getColor(this, R.color.white))
                 Toast.makeText(this, "Repeat: All", Toast.LENGTH_SHORT).show()
             }
             MusicPlayer.RepeatMode.ONE -> {
@@ -331,6 +323,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     DownloadManager.DownloadStatus.COMPLETED -> {
                         ToastManager.showToast(this, "Download completed!")
+                        // Update UI ngay lập tức khi download hoàn thành
                         updateDownloadedSongs()
                     }
                     DownloadManager.DownloadStatus.FAILED -> {
@@ -361,6 +354,9 @@ class MainActivity : AppCompatActivity() {
                 if (result.isFailure) {
                     Log.e("MainActivity", "Download failed: ${result.exceptionOrNull()}")
                     ToastManager.showToast(this@MainActivity, "Download failed!")
+                } else {
+                    // Update UI ngay lập tức sau khi download thành công
+                    updateDownloadedSongs()
                 }
             }
         }
@@ -374,6 +370,8 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     offlineRepository.deleteDownload(song.id)
                     ToastManager.showToast(this@MainActivity, "Download deleted")
+                    // Update UI ngay lập tức sau khi delete
+                    updateDownloadedSongs()
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -391,6 +389,61 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         player.release()
         ToastManager.cancelToast()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-setup player listeners khi quay lại activity
+        setupPlayerListeners()
+        // Update UI state ngay lập tức
+        updatePlayPauseButton(player.isPlaying())
+        updateShuffleButton()
+        updateRepeatButton()
+        player.getCurrentSong()?.let { updateNowPlaying(it) }
+        
+        // Force update progress bar
+        val currentPos = player.getCurrentPosition()
+        val duration = player.getDuration()
+        updateProgressBar(currentPos, duration)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Không clear listeners khi pause để có thể nhận updates
+    }
+
+    private fun setupPlayerListeners() {
+        // Setup listeners để tự động update UI
+        player.setOnPlayStateChangeListener { isPlaying ->
+            runOnUiThread {
+                updatePlayPauseButton(isPlaying)
+            }
+        }
+        
+        player.setOnShuffleModeChangeListener { isShuffleEnabled ->
+            runOnUiThread {
+                updateShuffleButton()
+            }
+        }
+        
+        player.setOnRepeatModeChangeListener { repeatMode ->
+            runOnUiThread {
+                updateRepeatButton()
+            }
+        }
+        
+        player.setOnSongChangeListener { song ->
+            runOnUiThread {
+                updateNowPlaying(song)
+            }
+        }
+        
+        // Setup progress updates
+        player.setOnProgressUpdateListener { currentPos, duration ->
+            runOnUiThread {
+                updateProgressBar(currentPos, duration)
+            }
+        }
     }
 }
 

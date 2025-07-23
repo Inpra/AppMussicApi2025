@@ -55,7 +55,7 @@ class SongAdapter(
     fun updateDownloadedSongs(downloadedIds: Set<String>) {
         downloadedSongs.clear()
         downloadedSongs.addAll(downloadedIds)
-        notifyDataSetChanged()
+        notifyDataSetChanged() // Force refresh toàn bộ list để update icons
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {

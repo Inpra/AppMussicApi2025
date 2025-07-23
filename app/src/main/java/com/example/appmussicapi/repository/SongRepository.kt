@@ -27,7 +27,7 @@ class SongRepository {
                 id = "nhac_mp3/toi_cho_co_gai_do",
                 name = "Tội cho cô gái đó",
                 artist = "Khắc Việt",
-                url = "https://res.cloudinary.com/dyugji8gz/video/upload/v1753159112/Mr.T_-_Thu_Cu%E1%BB%91i_ft_Yanbi_H%E1%BA%B1ng_BingBoong_Official_MV_qb8k6g.mp3",
+                url = "https://res.cloudinary.com/dyugji8gz/video/upload/v1753159111/KH%E1%BA%AEC_VI%E1%BB%86T_-_T%E1%BB%99i_Cho_C%C3%B4_G%C3%A1i_%C4%90%C3%B3_OFFICAL_MV_mnlkhy.mp3",
                 imageUrl = "https://i.ytimg.com/vi/6vjgXxFHfxs/maxresdefault.jpg"
             ),
             Song(
