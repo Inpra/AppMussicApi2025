@@ -17,6 +17,8 @@ import com.example.appmussicapi.repository.OfflineRepository
 import com.example.appmussicapi.data.download.DownloadManager
 import com.example.appmussicapi.ui.player.FullScreenPlayerActivity
 import com.example.appmussicapi.ui.player.MusicPlayerManager
+import com.example.appmussicapi.ui.queue.QueueBottomSheet
+import com.example.appmussicapi.data.model.QueueItem
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 import java.util.Locale
@@ -142,6 +144,25 @@ class MainActivity : AppCompatActivity() {
                 player.seekTo(seekPosition)
             }
         })
+        
+        // Add queue button listener
+        binding.playerControls.queueBtn.setOnClickListener {
+            showQueueBottomSheet()
+        }
+    }
+    
+    private fun showQueueBottomSheet() {
+        val queueBottomSheet = QueueBottomSheet(
+            queueManager = player.getQueueManager(),
+            onSongSelected = { queueItem: QueueItem ->
+                val song = player.getQueueManager().jumpToSong(queueItem.id)
+                song?.let {
+                    updateNowPlaying(it)
+                    ToastManager.showToast(this, "Playing: ${it.name}")
+                }
+            }
+        )
+        queueBottomSheet.show(supportFragmentManager, "QueueBottomSheet")
     }
     
     private fun setupSearchView() {
@@ -372,51 +393,4 @@ class MainActivity : AppCompatActivity() {
         ToastManager.cancelToast()
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

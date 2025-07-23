@@ -16,6 +16,12 @@
     <!-- Control button colors -->
     <color name="control_button_background">#20FFFFFF</color>
     <color name="control_button_active">#FF6200EE</color>
+    
+    <!-- Queue colors -->
+    <color name="primary_color">#FF6B35</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="background_secondary">#F5F5F5</color>
 </resources>
 
 

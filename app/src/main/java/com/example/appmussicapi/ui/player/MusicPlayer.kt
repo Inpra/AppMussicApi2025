@@ -10,9 +10,10 @@ import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.C
 import com.example.appmussicapi.data.model.Song
+import com.example.appmussicapi.ui.queue.QueueManager
 
 class MusicPlayer(private val context: Context) {
-    private val player = ExoPlayer.Builder(context)
+    private val player: ExoPlayer = ExoPlayer.Builder(context)
         .setWakeMode(C.WAKE_MODE_LOCAL)
         .setHandleAudioBecomingNoisy(true)
         .build()
@@ -21,7 +22,7 @@ class MusicPlayer(private val context: Context) {
     private var playlist: List<Song> = emptyList()
     private var shuffledPlaylist: List<Song> = emptyList()
     private var isShuffleEnabled = false
-    private var repeatMode = RepeatMode.OFF
+    private var repeatMode: RepeatMode = RepeatMode.OFF
 
     // Getter methods
     fun isPlaying(): Boolean = player.isPlaying
@@ -46,6 +47,9 @@ class MusicPlayer(private val context: Context) {
 
     // Add sleep timer
     private val sleepTimer = SleepTimer()
+    
+    // Add QueueManager
+    private val queueManager = QueueManager()
     
     init {
         player.addListener(object : Player.Listener {
@@ -75,6 +79,16 @@ class MusicPlayer(private val context: Context) {
 
         // Initialize sleep timer
         sleepTimer.setMusicPlayer(this)
+
+        // Setup queue manager listeners
+        queueManager.setOnCurrentIndexChangedListener { newIndex: Int ->
+            // Update current song when queue index changes
+            val currentSong = queueManager.getCurrentSong()
+            currentSong?.let { song: Song ->
+                play(song.url)
+                onSongChangeListener?.invoke(song)
+            }
+        }
     }
     
     fun play(url: String? = null) {
@@ -84,10 +98,10 @@ class MusicPlayer(private val context: Context) {
             Log.d("MusicPlayer", "Volume reset to 1.0 after sleep timer")
         }
         
-        url?.let {
-            if (currentUrl != it) {
-                currentUrl = it
-                val mediaItem = MediaItem.fromUri(Uri.parse(it))
+        url?.let { urlString: String ->
+            if (currentUrl != urlString) {
+                currentUrl = urlString
+                val mediaItem = MediaItem.fromUri(Uri.parse(urlString))
                 player.setMediaItem(mediaItem)
                 player.prepare()
             }
@@ -97,24 +111,24 @@ class MusicPlayer(private val context: Context) {
     }
     
     fun pause() {
-        player.pause()                         // Fix: exoPlayer -> player
+        player.pause()
         stopProgressUpdates()
         onPlayStateChangeListener?.invoke(false)
     }
     
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0, autoPlay: Boolean = true) {
-        this.playlist = songs
-        this.currentSongIndex = startIndex  // Fix: currentIndex -> currentSongIndex
+        // Set playlist in queue manager
+        queueManager.setPlaylist(songs, startIndex)
         
         if (songs.isNotEmpty() && startIndex < songs.size) {
             val song = songs[startIndex]
             val mediaItem = MediaItem.fromUri(song.url)
             
-            player.setMediaItem(mediaItem)  // Fix: exoPlayer -> player
-            player.prepare()                // Fix: exoPlayer -> player
+            player.setMediaItem(mediaItem)
+            player.prepare()
             
             if (autoPlay) {
-                player.play()               // Fix: exoPlayer -> player
+                player.play()
             }
             
             onSongChangeListener?.invoke(song)
@@ -135,22 +149,18 @@ class MusicPlayer(private val context: Context) {
     }
     
     fun next() {
-        val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
-        if (currentPlaylist.isNotEmpty()) {
-            currentSongIndex = (currentSongIndex + 1) % currentPlaylist.size
-            Log.d("MusicPlayer", "Next song - Index: $currentSongIndex, Shuffle: $isShuffleEnabled")
-            play(currentPlaylist[currentSongIndex].url)
-            onSongChangeListener?.invoke(currentPlaylist[currentSongIndex])
+        val nextSong = queueManager.moveToNext()
+        nextSong?.let { song: Song ->
+            play(song.url)
+            onSongChangeListener?.invoke(song)
         }
     }
     
     fun previous() {
-        val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
-        if (currentPlaylist.isNotEmpty()) {
-            currentSongIndex = if (currentSongIndex > 0) currentSongIndex - 1 else currentPlaylist.size - 1
-            Log.d("MusicPlayer", "Previous song - Index: $currentSongIndex, Shuffle: $isShuffleEnabled")
-            play(currentPlaylist[currentSongIndex].url)
-            onSongChangeListener?.invoke(currentPlaylist[currentSongIndex])
+        val prevSong = queueManager.moveToPrevious()
+        prevSong?.let { song: Song ->
+            play(song.url)
+            onSongChangeListener?.invoke(song)
         }
     }
     
@@ -260,12 +270,7 @@ class MusicPlayer(private val context: Context) {
 
     fun isRepeatOneEnabled(): Boolean = repeatMode == RepeatMode.ONE
 
-    fun getCurrentSong(): Song? {
-        val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
-        return if (currentPlaylist.isNotEmpty() && currentSongIndex >= 0 && currentSongIndex < currentPlaylist.size) {
-            currentPlaylist[currentSongIndex]
-        } else null
-    }
+    fun getCurrentSong(): Song? = queueManager.getCurrentSong()
 
     private fun handlePlaybackEnded() {
         val currentPlaylist = if (isShuffleEnabled) shuffledPlaylist else playlist
@@ -316,4 +321,15 @@ class MusicPlayer(private val context: Context) {
     fun isSleepTimerActive(): Boolean = sleepTimer.isActive()
     
     fun getSleepTimerRemainingTime(): Long = sleepTimer.getRemainingTime()
+
+    fun getQueueManager(): QueueManager = queueManager
+
+    // Add to queue methods
+    fun addToQueue(song: Song) {
+        queueManager.addToQueue(song)
+    }
+
+    fun playNext(song: Song) {
+        queueManager.playNext(song)
+    }
 }

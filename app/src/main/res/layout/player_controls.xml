@@ -121,5 +121,13 @@
             android:src="@drawable/ic_repeat"
             android:layout_marginStart="16dp"
             android:background="?attr/selectableItemBackgroundBorderless" />
+        
+        <ImageButton
+            android:id="@+id/queueBtn"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_queue_music"
+            android:layout_marginStart="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless" />
     </LinearLayout>
 </LinearLayout>

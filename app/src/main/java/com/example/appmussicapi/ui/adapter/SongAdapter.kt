@@ -13,10 +13,13 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import android.util.Log
 import androidx.core.content.ContextCompat
+import android.widget.PopupMenu
 
 class SongAdapter(
     private val onSongClick: (Song) -> Unit,
-    private val onDownloadClick: (Song) -> Unit = {}
+    private val onDownloadClick: (Song) -> Unit = {},
+    private val onAddToQueue: (Song) -> Unit = {},
+    private val onPlayNext: (Song) -> Unit = {}
 ) : RecyclerView.Adapter<SongAdapter.SongViewHolder>() {
     
     private var allSongs: List<Song> = emptyList()
@@ -100,6 +103,7 @@ class SongAdapter(
             itemView.setOnClickListener { onSongClick(song) }
             playButton.setOnClickListener { onSongClick(song) }
             downloadButton.setOnClickListener { onDownloadClick(song) }
+            setupContextMenu(song)
         }
         
         private fun formatDuration(durationMs: Long): String {
@@ -107,6 +111,34 @@ class SongAdapter(
             val seconds = (durationMs / 1000) % 60
             val minutes = (durationMs / (1000 * 60)) % 60
             return String.format("%d:%02d", minutes, seconds)
+        }
+
+        private fun setupContextMenu(song: Song) {
+            itemView.setOnLongClickListener {
+                showContextMenu(song)
+                true
+            }
+        }
+        
+        private fun showContextMenu(song: Song) {
+            val popup = PopupMenu(itemView.context, itemView)
+            popup.menuInflater.inflate(R.menu.song_context_menu, popup.menu)
+            
+            popup.setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.action_add_to_queue -> {
+                        onAddToQueue(song)
+                        true
+                    }
+                    R.id.action_play_next -> {
+                        onPlayNext(song)
+                        true
+                    }
+                    else -> false
+                }
+            }
+            
+            popup.show()
         }
     }
 }
