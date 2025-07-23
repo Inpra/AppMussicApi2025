@@ -12,6 +12,10 @@
     <color name="button_active_cyan">#00BCD4</color>
     <color name="button_active_orange">#FF9800</color>
     <color name="button_inactive">#757575</color>
+    
+    <!-- Control button colors -->
+    <color name="control_button_background">#20FFFFFF</color>
+    <color name="control_button_active">#FF6200EE</color>
 </resources>
 
 

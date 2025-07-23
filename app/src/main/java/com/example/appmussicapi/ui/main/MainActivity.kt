@@ -15,6 +15,8 @@ import com.example.appmussicapi.ui.adapter.SongAdapter
 import com.example.appmussicapi.ui.player.MusicPlayer
 import com.example.appmussicapi.repository.OfflineRepository
 import com.example.appmussicapi.data.download.DownloadManager
+import com.example.appmussicapi.ui.player.FullScreenPlayerActivity
+import com.example.appmussicapi.ui.player.MusicPlayerManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 import java.util.Locale
@@ -39,6 +41,9 @@ class MainActivity : AppCompatActivity() {
         themeManager = ThemeManager(this)
         player = MusicPlayer(this)
         offlineRepository = OfflineRepository(this)
+        
+        // Initialize MusicPlayerManager
+        MusicPlayerManager.initialize(player)
         
         setupRecyclerView()
         setupPlayerControls()
@@ -176,6 +181,14 @@ class MainActivity : AppCompatActivity() {
             binding.playerControls.songTitle.text = it.name
             binding.playerControls.artistName.text = it.artist
             Log.d("MainActivity", "Now playing: ${it.name} by ${it.artist}")
+            
+            // Add click listener to open full screen player
+            binding.playerControls.songTitle.setOnClickListener {
+                FullScreenPlayerActivity.start(this, player)
+            }
+            binding.playerControls.artistName.setOnClickListener {
+                FullScreenPlayerActivity.start(this, player)
+            }
         }
     }
     

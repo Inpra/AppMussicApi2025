@@ -30,6 +30,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.player.FullScreenPlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppMussicApi" />
     </application>
 
 </manifest>
