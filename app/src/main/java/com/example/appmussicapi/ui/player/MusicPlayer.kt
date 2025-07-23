@@ -27,6 +27,7 @@ class MusicPlayer(private val context: Context) {
     fun isPlaying(): Boolean = player.isPlaying
     fun getIsShuffleEnabled(): Boolean = isShuffleEnabled
     fun getPlayer(): ExoPlayer = player
+    fun getRepeatMode(): RepeatMode = repeatMode
 
     // Add missing variables
     private val handler = Handler(Looper.getMainLooper())
@@ -42,6 +43,9 @@ class MusicPlayer(private val context: Context) {
     private var onPlayStateChangeListener: ((Boolean) -> Unit)? = null
     private var onShuffleModeChangeListener: ((Boolean) -> Unit)? = null
     private var onRepeatModeChangeListener: ((RepeatMode) -> Unit)? = null
+
+    // Add sleep timer
+    private val sleepTimer = SleepTimer()
     
     init {
         player.addListener(object : Player.Listener {
@@ -68,18 +72,27 @@ class MusicPlayer(private val context: Context) {
                 onPlayStateChangeListener?.invoke(isPlaying)
             }
         })
+
+        // Initialize sleep timer
+        sleepTimer.setMusicPlayer(this)
     }
     
     fun play(url: String? = null) {
+        // Reset volume nếu đang bằng 0 (sau sleep timer)
+        if (player.volume == 0f) {
+            player.volume = 1.0f
+            Log.d("MusicPlayer", "Volume reset to 1.0 after sleep timer")
+        }
+        
         url?.let {
             if (currentUrl != it) {
                 currentUrl = it
                 val mediaItem = MediaItem.fromUri(Uri.parse(it))
-                player.setMediaItem(mediaItem)  // Fix: exoPlayer -> player
-                player.prepare()                // Fix: exoPlayer -> player
+                player.setMediaItem(mediaItem)
+                player.prepare()
             }
         }
-        player.play()                          // Fix: exoPlayer -> player
+        player.play()
         onPlayStateChangeListener?.invoke(true)
     }
     
@@ -109,15 +122,15 @@ class MusicPlayer(private val context: Context) {
         }
     }
     
-    fun setOnSongChangeListener(listener: (Song) -> Unit) {
+    fun setOnSongChangeListener(listener: ((Song) -> Unit)?) {
         onSongChangeListener = listener
     }
     
-    fun setOnProgressUpdateListener(listener: (Long, Long) -> Unit) {
+    fun setOnProgressUpdateListener(listener: ((Long, Long) -> Unit)?) {
         onProgressUpdateListener = listener
     }
     
-    fun setOnPlayStateChangeListener(listener: (Boolean) -> Unit) {
+    fun setOnPlayStateChangeListener(listener: ((Boolean) -> Unit)?) {
         onPlayStateChangeListener = listener
     }
     
@@ -143,6 +156,12 @@ class MusicPlayer(private val context: Context) {
     
     fun seekTo(positionMs: Long) {
         if (player.isCommandAvailable(Player.COMMAND_SEEK_TO_DEFAULT_POSITION)) {
+            // Reset volume nếu đang bằng 0 (sau sleep timer)
+            if (player.volume == 0f) {
+                player.volume = 1.0f
+                Log.d("MusicPlayer", "Volume reset to 1.0 during seek")
+            }
+            
             player.seekTo(positionMs)
             Log.d("MusicPlayer", "Seeking to: ${positionMs}ms")
         }
@@ -231,15 +250,13 @@ class MusicPlayer(private val context: Context) {
         onRepeatModeChangeListener?.invoke(repeatMode)
     }
     
-    fun setOnShuffleModeChangeListener(listener: (Boolean) -> Unit) {
+    fun setOnShuffleModeChangeListener(listener: ((Boolean) -> Unit)?) {
         onShuffleModeChangeListener = listener
     }
     
-    fun setOnRepeatModeChangeListener(listener: (RepeatMode) -> Unit) {
+    fun setOnRepeatModeChangeListener(listener: ((RepeatMode) -> Unit)?) {
         onRepeatModeChangeListener = listener
     }
-
-    fun getRepeatMode(): RepeatMode = repeatMode
 
     fun isRepeatOneEnabled(): Boolean = repeatMode == RepeatMode.ONE
 
@@ -284,4 +301,19 @@ class MusicPlayer(private val context: Context) {
             }
         }
     }
+
+    // Sleep timer methods
+    fun getSleepTimer(): SleepTimer = sleepTimer
+    
+    fun startSleepTimer(durationMs: Long) {
+        sleepTimer.startTimer(durationMs)
+    }
+    
+    fun stopSleepTimer() {
+        sleepTimer.stopTimer()
+    }
+    
+    fun isSleepTimerActive(): Boolean = sleepTimer.isActive()
+    
+    fun getSleepTimerRemainingTime(): Long = sleepTimer.getRemainingTime()
 }

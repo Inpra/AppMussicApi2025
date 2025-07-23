@@ -39,11 +39,11 @@ class MainActivity : AppCompatActivity() {
         
         // Initialize components
         themeManager = ThemeManager(this)
-        player = MusicPlayer(this)
         offlineRepository = OfflineRepository(this)
         
         // Initialize MusicPlayerManager
-        MusicPlayerManager.initialize(player)
+        MusicPlayerManager.initialize(this)
+        player = MusicPlayerManager.getInstance()
         
         setupRecyclerView()
         setupPlayerControls()

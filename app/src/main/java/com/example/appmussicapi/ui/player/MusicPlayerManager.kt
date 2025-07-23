@@ -1,13 +1,22 @@
 package com.example.appmussicapi.ui.player
 
+import android.content.Context
+
 object MusicPlayerManager {
-    private var musicPlayerInstance: MusicPlayer? = null
+    private var musicPlayer: MusicPlayer? = null
     
-    fun initialize(musicPlayer: MusicPlayer) {
-        musicPlayerInstance = musicPlayer
+    fun initialize(context: Context) {
+        if (musicPlayer == null) {
+            musicPlayer = MusicPlayer(context.applicationContext)
+        }
     }
     
     fun getInstance(): MusicPlayer {
-        return musicPlayerInstance ?: throw IllegalStateException("MusicPlayer not initialized")
+        return musicPlayer ?: throw IllegalStateException("MusicPlayerManager not initialized")
+    }
+    
+    fun release() {
+        musicPlayer?.release()
+        musicPlayer = null
     }
 }
