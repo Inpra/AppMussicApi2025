@@ -8,9 +8,9 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object CloudinaryApiClient {
-    private const val BASE_URL = "https://api.cloudinary.com/v1_1/dyugji8gz/"
-    private const val API_KEY = "499594246135446"  // API Key từ Dashboard
-    private const val API_SECRET = "2DmOi7v8c1D5jUhrltPophcAUaM"  // API Secret từ Dashboard
+    private const val BASE_URL = "......"
+    private const val API_KEY = "....."  // API Key từ Dashboard
+    private const val API_SECRET = "......"  // API Secret từ Dashboard
     
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply {
